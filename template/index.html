@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel de Análise de Dados</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .file-input-label {
+            display: inline-block;
+            padding: 12px 24px;
+            background-color: #3b82f6;
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .file-input-label:hover {
+            background-color: #2563eb;
+            transform: translateY(-2px);
+        }
+        .file-input {
+            display: none;
+        }
+        .data-table {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .highlight-positive {
+            background-color: rgba(74, 222, 128, 0.2);
+        }
+        .highlight-negative {
+            background-color: rgba(248, 113, 113, 0.2);
+        }
+        .chart-container {
+            position: relative;
+            height: 300px;
+            width: 100%;
+        }
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <header class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">Painel de Análise de Dados</h1>
+            <p class="text-gray-600">Importe e analise seus arquivos de dados (XLS, CSV, XLSX)</p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Seção de Importação -->
+            <div class="bg-white rounded-lg shadow-md p-6 lg:col-span-1">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">Importar Dados</h2>
+
+                <form id="uploadForm">
+                    <div class="mb-6">
+                        <label for="fileInput" class="file-input-label pulse">
+                            <i class="fas fa-file-import mr-2"></i> Selecionar Arquivo
+                        </label>
+                        <input type="file" id="fileInput" name="file" class="file-input" accept=".csv,.xlsx,.xls">
+                        <p class="text-sm text-gray-500 mt-2">Formatos suportados: CSV, XLS, XLSX</p>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="block text-gray-700 text-sm font-medium mb-2">Tipo de Arquivo</label>
+                        <select id="fileType" name="fileType" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                            <option value="auto">Detecção Automática</option>
+                            <option value="csv">CSV</option>
+                            <option value="xlsx">Excel (XLSX)</option>
+                            <option value="xls">Excel (XLS)</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="flex items-center">
+                            <input type="checkbox" id="hasHeaders" name="hasHeaders" class="rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" checked>
+                            <span class="ml-2 text-sm text-gray-700">Arquivo contém cabeçalhos</span>
+                        </label>
+                    </div>
+
+                    <button type="submit" id="analyzeBtn" class="w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 opacity-50 cursor-not-allowed" disabled>
+                        Analisar Dados
+                    </button>
+                </form>
+            </div>
+
+            <!-- Pré-visualização dos Dados -->
+            <div class="bg-white rounded-lg shadow-md p-6 lg:col-span-2">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">Pré-visualização</h2>
+                <div id="dataPreview" class="data-table">
+                    <div class="flex items-center justify-center h-64 text-gray-400">
+                        <div class="text-center">
+                            <i class="fas fa-file-excel text-4xl mb-2"></i>
+                            <p>Nenhum dado carregado</p>
+                            <p class="text-sm">Importe um arquivo para começar a análise</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Resultados da Análise -->
+        <div id="analysisResults" class="mt-8 hidden">
+            <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">Resumo da Análise</h2>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div class="bg-blue-50 p-4 rounded-lg">
+                        <h3 class="text-sm font-medium text-blue-800">Total de Registros</h3>
+                        <p id="totalRecords" class="text-2xl font-bold text-blue-600">0</p>
+                    </div>
+                    <div class="bg-green-50 p-4 rounded-lg">
+                        <h3 class="text-sm font-medium text-green-800">Dimensões Positivas</h3>
+                        <p id="positiveCount" class="text-2xl font-bold text-green-600">0</p>
+                    </div>
+                    <div class="bg-red-50 p-4 rounded-lg">
+                        <h3 class="text-sm font-medium text-red-800">Dimensões Negativas</h3>
+                        <p id="negativeCount" class="text-2xl font-bold text-red-600">0</p>
+                    </div>
+                </div>
+
+                <div class="mb-6">
+                    <h3 class="text-lg font-medium text-gray-800 mb-2">Indicadores Mais Comuns</h3>
+                    <div id="commonIndicators" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Será preenchido por JavaScript -->
+                    </div>
+                </div>
+
+                <div class="mb-6">
+                    <h3 class="text-lg font-medium text-gray-800 mb-2">Localidades Principais</h3>
+                    <div id="topLocalities" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Será preenchido por JavaScript -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Seção de Gráficos -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4">Distribuição de Dimensões</h2>
+                    <div class="chart-container">
+                        <img id="dimensionChart" class="w-full h-full object-contain">
+                    </div>
+                </div>
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4">Distribuição de Valores</h2>
+                    <div class="chart-container">
+                        <img id="valueChart" class="w-full h-full object-contain">
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">Visualização Detalhada</h2>
+                <div class="overflow-x-auto">
+                    <table id="detailedData" class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Localidade</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dimensão</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Indicador Priorizado</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Valor</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dataTableBody" class="bg-white divide-y divide-gray-200">
+                            <!-- Será preenchido por JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const fileInput = document.getElementById('fileInput');
+            const analyzeBtn = document.getElementById('analyzeBtn');
+            const uploadForm = document.getElementById('uploadForm');
+
+            // Habilitar botão quando um arquivo for selecionado
+            fileInput.addEventListener('change', function() {
+                analyzeBtn.disabled = !this.files.length;
+                analyzeBtn.classList.toggle('opacity-50', !this.files.length);
+                analyzeBtn.classList.toggle('cursor-not-allowed', !this.files.length);
+            });
+
+            // Enviar formulário via AJAX
+            uploadForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+
+                const formData = new FormData(this);
+
+                // Mostrar loading
+                analyzeBtn.disabled = true;
+                analyzeBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Processando...';
+
+                fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        return response.json().then(err => { throw new Error(err.error || 'Erro no servidor') });
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (!data || typeof data !== 'object') {
+                        throw new Error('Resposta inválida do servidor');
+                    }
+
+                    // Verificar se os dados de preview estão presentes
+                    if (!data.preview || !Array.isArray(data.preview)) {
+                        throw new Error('Dados de pré-visualização inválidos');
+                    }
+
+                    // Verificar valores numéricos
+                    const valueColumn = Object.keys(data.preview[0] || {})[3];
+                    if (valueColumn) {
+                        const problemRows = data.preview.filter(row => {
+                            const val = row[valueColumn];
+                            return val !== null && val !== undefined && isNaN(parseFloat(val));
+                        });
+
+                        if (problemRows.length > 0) {
+                            console.warn('Valores não numéricos encontrados:', problemRows);
+                        }
+                    }
+
+                    // Mostrar pré-visualização
+                    showPreview(data);
+
+                    // Mostrar resultados da análise
+                    showAnalysisResults(data);
+
+                    // Mostrar gráficos se existirem
+                    if (data.charts) {
+                        if (data.charts.dimension_chart) {
+                            document.getElementById('dimensionChart').src = 'data:image/png;base64,' + data.charts.dimension_chart;
+                        }
+                        if (data.charts.value_chart) {
+                            document.getElementById('valueChart').src = 'data:image/png;base64,' + data.charts.value_chart;
+                        }
+                    }
+
+                    // Mostrar seção de resultados
+                    document.getElementById('analysisResults').classList.remove('hidden');
+
+                    // Rolar até os resultados
+                    document.getElementById('analysisResults').scrollIntoView({ behavior: 'smooth' });
+                })
+                .catch(error => {
+                    console.error('Erro:', error);
+                    showError(error.message || 'Erro ao processar arquivo');
+                })
+                .finally(() => {
+                    analyzeBtn.disabled = false;
+                    analyzeBtn.innerHTML = 'Analisar Dados';
+                });
+            });
+
+            function showPreview(data) {
+                if (!data.preview || data.preview.length === 0) {
+                    document.getElementById('dataPreview').innerHTML = `
+                        <div class="flex items-center justify-center h-64 text-gray-400">
+                            <div class="text-center">
+                                <i class="fas fa-exclamation-triangle text-4xl mb-2"></i>
+                                <p>Nenhum dado válido encontrado no arquivo</p>
+                            </div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                // Obter cabeçalhos
+                const headers = Object.keys(data.preview[0]);
+
+                let html = `
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    ${headers.map(h => `<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">${h}</th>`).join('')}
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                `;
+
+                data.preview.forEach(row => {
+                    html += `<tr>`;
+                    headers.forEach(h => {
+                        const value = row[h] !== null && row[h] !== undefined ? row[h] : '';
+                        html += `<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${value}</td>`;
+                    });
+                    html += `</tr>`;
+                });
+
+                html += `
+                            </tbody>
+                        </table>
+                    </div>
+                    <p class="text-sm text-gray-500 mt-2">Mostrando ${data.preview.length} de ${data.total_records || 0} registros</p>
+                `;
+
+                document.getElementById('dataPreview').innerHTML = html;
+            }
+
+            function showAnalysisResults(data) {
+                if (!data.analysis || !Array.isArray(data.analysis)) {
+                    console.error('Dados de análise inválidos:', data.analysis);
+                    return;
+                }
+
+                // Atualizar estatísticas
+                document.getElementById('totalRecords').textContent = data.total_records || 0;
+
+                const positiveCount = data.analysis.filter(item => item.dimensao === 'Positivo').length;
+                const negativeCount = data.analysis.filter(item => item.dimensao === 'Negativo').length;
+
+                document.getElementById('positiveCount').textContent = positiveCount;
+                document.getElementById('negativeCount').textContent = negativeCount;
+
+                // Encontrar indicadores mais comuns
+                const indicatorCounts = {};
+                data.analysis.forEach(item => {
+                    if (item.indicador) {
+                        indicatorCounts[item.indicador] = (indicatorCounts[item.indicador] || 0) + 1;
+                    }
+                });
+
+                const sortedIndicators = Object.entries(indicatorCounts)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 6);
+
+                const indicatorsContainer = document.getElementById('commonIndicators');
+                indicatorsContainer.innerHTML = sortedIndicators.map(([indicator, count]) => `
+                    <div class="bg-gray-50 p-3 rounded-lg">
+                        <div class="flex justify-between items-center">
+                            <span class="font-medium text-gray-700 truncate">${indicator || 'N/A'}</span>
+                            <span class="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded">${count}</span>
+                        </div>
+                    </div>
+                `).join('');
+
+                // Encontrar localidades principais
+                const localityCounts = {};
+                data.analysis.forEach(item => {
+                    if (item.localidade) {
+                        localityCounts[item.localidade] = (localityCounts[item.localidade] || 0) + 1;
+                    }
+                });
+
+                const sortedLocalities = Object.entries(localityCounts)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 6);
+
+                const localitiesContainer = document.getElementById('topLocalities');
+                localitiesContainer.innerHTML = sortedLocalities.map(([locality, count]) => `
+                    <div class="bg-gray-50 p-3 rounded-lg">
+                        <div class="flex justify-between items-center">
+                            <span class="font-medium text-gray-700 truncate">${locality || 'N/A'}</span>
+                            <span class="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded">${count}</span>
+                        </div>
+                    </div>
+                `).join('');
+
+                // Preencher tabela detalhada
+                const tableBody = document.getElementById('dataTableBody');
+                tableBody.innerHTML = data.analysis.map(item => `
+                    <tr class="${item.dimensao === 'Positivo' ? 'highlight-positive' : 'highlight-negative'}">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${item.localidade || 'N/A'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm ${item.dimensao === 'Positivo' ? 'text-green-600' : 'text-red-600'}">
+                            ${item.dimensao || 'N/A'}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${item.indicador || 'N/A'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium ${item.valor >= 0 ? 'text-green-600' : 'text-red-600'}">
+                            ${typeof item.valor === 'number' ? item.valor.toFixed(2) : item.valor || '0.00'}
+                        </td>
+                    </tr>
+                `).join('');
+            }
+
+            function showError(message) {
+                document.getElementById('dataPreview').innerHTML = `
+                    <div class="bg-red-50 border-l-4 border-red-400 p-4">
+                        <div class="flex">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-exclamation-circle text-red-400"></i>
+                            </div>
+                            <div class="ml-3">
+                                <p class="text-sm text-red-700">${message}</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                // Esconder resultados se estiverem visíveis
+                document.getElementById('analysisResults').classList.add('hidden');
+            }
+        });
+    </script>
+</body>
+</html>
